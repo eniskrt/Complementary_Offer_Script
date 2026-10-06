@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(node --test test/)",
+      "Bash(npm test *)",
+      "Bash(tasklist)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\")",
+      "PowerShell(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'complementary-offer-script|cli\\\\.js|recommendations' } | Select-Object ProcessId, ParentProcessId, CreationDate, CommandLine | Format-List)",
+      "PowerShell(Get-CimInstance Win32_Process | Where-Object { $_.CreationDate -gt \\(Get-Date\\).AddHours\\(-1\\) } | Select-Object ProcessId, Name, CreationDate, CommandLine | Sort-Object CreationDate | Format-Table -AutoSize -Wrap)",
+      "PowerShell(Get-Process -Id 24348 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Id 33260 -ErrorAction SilentlyContinue)",
+      "Bash(node scripts/review-audit.js \"output/09-17-2026/2026-09-17_22-49-58\" --live)",
+      "Bash(node scripts/summarize-review.js \"output/09-17-2026/2026-09-17_22-49-58/review\")",
+      "PowerShell(Get-Process -Id 17032 -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 17032 -Force -Confirm:$false)"
+    ]
+  }
+}

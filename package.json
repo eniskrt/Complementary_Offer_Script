@@ -1,0 +1,15 @@
+{
+  "name": "ornate-recommendations",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.14.0" },
+  "scripts": {
+    "recommendations:audit": "node src/cli.js audit",
+    "recommendations:write": "node src/cli.js write",
+    "test": "node --test",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": { "exceljs": "4.4.0" },
+  "overrides": { "exceljs": { "uuid": "11.1.1" } }
+}

@@ -1,0 +1,75 @@
+name: Scheduled Shopify recommendations
+
+on:
+  schedule:
+    # 04:00 Europe/Istanbul (UTC+3), every Monday and Thursday.
+    - cron: "0 1 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shopify-recommendations-write
+  cancel-in-progress: false
+
+jobs:
+  write-recommendations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
+      SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+      SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+      SHOPIFY_API_VERSION: ${{ vars.SHOPIFY_API_VERSION || '2026-07' }}
+      ALLOW_SHOPIFY_WRITE: "true"
+      EMPTY_RECOMMENDATIONS: ${{ vars.EMPTY_RECOMMENDATIONS || 'preserve' }}
+      SIZE_OPTION_NAMES: ${{ vars.SIZE_OPTION_NAMES || 'Size,Mattress Size,Bed Size' }}
+      TWIN_MATTRESS_COLLECTION: ${{ vars.TWIN_MATTRESS_COLLECTION }}
+      TWIN_XL_MATTRESS_COLLECTION: ${{ vars.TWIN_XL_MATTRESS_COLLECTION }}
+      FULL_MATTRESS_COLLECTION: ${{ vars.FULL_MATTRESS_COLLECTION }}
+      QUEEN_MATTRESS_COLLECTION: ${{ vars.QUEEN_MATTRESS_COLLECTION }}
+      KING_MATTRESS_COLLECTION: ${{ vars.KING_MATTRESS_COLLECTION }}
+      CALIFORNIA_KING_MATTRESS_COLLECTION: ${{ vars.CALIFORNIA_KING_MATTRESS_COLLECTION }}
+      SPLIT_KING_MATTRESS_COLLECTION: ${{ vars.SPLIT_KING_MATTRESS_COLLECTION }}
+      SPLIT_CALIFORNIA_KING_MATTRESS_COLLECTION: ${{ vars.SPLIT_CALIFORNIA_KING_MATTRESS_COLLECTION }}
+      TWIN_ADJUSTABLE_BASE_COLLECTION: ${{ vars.TWIN_ADJUSTABLE_BASE_COLLECTION }}
+      TWIN_XL_ADJUSTABLE_BASE_COLLECTION: ${{ vars.TWIN_XL_ADJUSTABLE_BASE_COLLECTION }}
+      FULL_ADJUSTABLE_BASE_COLLECTION: ${{ vars.FULL_ADJUSTABLE_BASE_COLLECTION }}
+      QUEEN_ADJUSTABLE_BASE_COLLECTION: ${{ vars.QUEEN_ADJUSTABLE_BASE_COLLECTION }}
+      KING_ADJUSTABLE_BASE_COLLECTION: ${{ vars.KING_ADJUSTABLE_BASE_COLLECTION }}
+      CALIFORNIA_KING_ADJUSTABLE_BASE_COLLECTION: ${{ vars.CALIFORNIA_KING_ADJUSTABLE_BASE_COLLECTION }}
+      SPLIT_KING_ADJUSTABLE_BASE_COLLECTION: ${{ vars.SPLIT_KING_ADJUSTABLE_BASE_COLLECTION }}
+      SPLIT_CALIFORNIA_KING_ADJUSTABLE_BASE_COLLECTION: ${{ vars.SPLIT_CALIFORNIA_KING_ADJUSTABLE_BASE_COLLECTION }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate project
+        run: npm run check
+
+      - name: Write Shopify recommendations
+        run: npm run recommendations:write -- --confirm-write
+
+      - name: Upload run reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recommendation-write-${{ github.run_id }}
+          path: |
+            output/**/run-summary.json
+            output/**/recommendations-audit.xlsx
+            output/**/write-results.xlsx
+            output/**/pre-write-snapshot.jsonl
+          if-no-files-found: warn
+          retention-days: 14
