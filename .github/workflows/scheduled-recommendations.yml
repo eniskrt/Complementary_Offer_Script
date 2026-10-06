@@ -2,20 +2,25 @@ name: Scheduled Shopify recommendations
 
 on:
   schedule:
-    # 04:00 Europe/Istanbul (UTC+3), every Monday and Thursday.
-    - cron: "0 1 * * 1,4"
+    # Primary run: 04:07 Los Angeles local time, every Monday and Thursday.
+    - cron: "7 4 * * 1,4"
+      timezone: "America/Los_Angeles"
+    # Backup run: only writes when no successful run exists in the last 90 minutes.
+    - cron: "47 4 * * 1,4"
+      timezone: "America/Los_Angeles"
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: shopify-recommendations-write
-  cancel-in-progress: false
+  queue: max
 
 jobs:
   write-recommendations:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
       SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
@@ -43,27 +48,55 @@ jobs:
       SPLIT_CALIFORNIA_KING_ADJUSTABLE_BASE_COLLECTION: ${{ vars.SPLIT_CALIFORNIA_KING_ADJUSTABLE_BASE_COLLECTION }}
 
     steps:
+      - name: Decide whether this run should write
+        id: gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          run_needed=true
+          if [[ "$GITHUB_EVENT_NAME" == "schedule" && "$TRIGGER_SCHEDULE" == "47 4 * * 1,4" ]]; then
+            cutoff=$(date -u -d '90 minutes ago' '+%Y-%m-%dT%H:%M:%SZ')
+            if response=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/scheduled-recommendations.yml/runs?event=schedule&per_page=20"); then
+              successful=$(jq --arg cutoff "$cutoff" --argjson current "$GITHUB_RUN_ID" \
+                '[.workflow_runs[] | select(.id != $current and .conclusion == "success" and .created_at >= $cutoff)] | length' <<< "$response")
+              if (( successful > 0 )); then
+                run_needed=false
+                echo "A recent scheduled run succeeded; the backup write will be skipped."
+              fi
+            else
+              echo "::warning::Could not inspect recent workflow runs; backup will proceed safely."
+            fi
+          fi
+          echo "run=$run_needed" >> "$GITHUB_OUTPUT"
+
       - name: Check out repository
-        uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v7
         with:
           node-version: "22.14.0"
           cache: npm
 
       - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
         run: npm ci
 
       - name: Validate project
+        if: steps.gate.outputs.run == 'true'
         run: npm run check
 
       - name: Write Shopify recommendations
+        if: steps.gate.outputs.run == 'true'
         run: npm run recommendations:write -- --confirm-write
 
       - name: Upload run reports
-        if: always()
-        uses: actions/upload-artifact@v4
+        if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v7
         with:
           name: recommendation-write-${{ github.run_id }}
           path: |

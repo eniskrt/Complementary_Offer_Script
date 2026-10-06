@@ -129,7 +129,7 @@ While a run is active, a progress message appears every 15 seconds, including th
 
 ## GitHub Actions schedule
 
-`.github/workflows/scheduled-recommendations.yml` runs the write command directly, without a preceding audit, every Monday and Thursday at 04:00 Europe/Istanbul (01:00 UTC). It can also be started manually from the repository's **Actions** tab. GitHub scheduled workflows run from the default branch, so the workflow file must be committed and pushed there.
+`.github/workflows/scheduled-recommendations.yml` runs the write command directly, without a preceding audit, every Monday and Thursday at 04:07 America/Los_Angeles. GitHub's timezone-aware schedule follows Los Angeles daylight-saving changes automatically. A backup schedule starts at 04:47. It skips the Shopify write when a scheduled run succeeded during the preceding 90 minutes, and proceeds when the primary run failed, was dropped, or could not be found. Workflow runs use a FIFO concurrency queue so they never write simultaneously. It can also be started manually from the repository's **Actions** tab. GitHub scheduled workflows run from the latest commit on the default branch, so the workflow file must be committed and pushed there.
 
 Add these repository **Actions secrets** under **Settings → Secrets and variables → Actions**:
 
@@ -137,6 +137,6 @@ Add these repository **Actions secrets** under **Settings → Secrets and variab
 - `SHOPIFY_CLIENT_ID`
 - `SHOPIFY_CLIENT_SECRET`
 
-Add `SHOPIFY_API_VERSION`, `EMPTY_RECOMMENDATIONS`, `SIZE_OPTION_NAMES`, and each enabled collection setting from `.env.example` as repository **Actions variables**. Blank or missing collection variables remain disabled and their existing metafields are preserved. The workflow sets `ALLOW_SHOPIFY_WRITE=true` itself, prevents overlapping scheduled writes, validates JavaScript before writing, and retains the summary and Excel reports as a GitHub artifact for 14 days. Detailed JSONL logs are intentionally excluded because they can be very large.
+Add `SHOPIFY_API_VERSION`, `EMPTY_RECOMMENDATIONS`, `SIZE_OPTION_NAMES`, and each enabled collection setting from `.env.example` as repository **Actions variables**. Blank or missing collection variables remain disabled and their existing metafields are preserved. The workflow sets `ALLOW_SHOPIFY_WRITE=true` itself, uses the fixed `ubuntu-24.04` runner image, validates JavaScript before writing, and retains the summary and Excel reports as a GitHub artifact for 14 days. Detailed JSONL logs are intentionally excluded because they can be very large.
 
 ExcelJS's UUID dependency is pinned to patched version `11.1.1`: [security advisory](https://github.com/advisories/GHSA-w5hq-g745-h8pq). Run `node scripts/export-graphql.js` to export resolved operations to `output/validation/operations.graphql` for Shopify schema validation.
